@@ -26,25 +26,33 @@ type LoginRequest struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		utils.Error(c, http.StatusBadRequest, "Invalid request", nil)
 		return
 	}
+
+	// Rate limiting and brute-force protection should be implemented here (TODO)
 
 	var res *services.LoginResponse
 	var err error
 
-	if req.Role == "superadmin" {
+	switch req.Role {
+	case "superadmin":
 		res, err = h.svc.SuperAdminLogin(req.Email, req.Password)
-	} else {
+	case "staff":
 		if req.Schema == "" {
-			utils.Error(c, http.StatusBadRequest, "Schema is required for this role", nil)
+			utils.Error(c, http.StatusBadRequest, "Invalid request", nil)
 			return
 		}
 		res, err = h.svc.StaffLogin(req.Schema, req.Email, req.Password)
+	// Add other roles as needed (customer, reseller)
+	default:
+		utils.Error(c, http.StatusBadRequest, "Invalid role", nil)
+		return
 	}
 
 	if err != nil {
-		utils.Error(c, http.StatusUnauthorized, err.Error(), nil)
+		// Generic error message to avoid leaking info
+		utils.Error(c, http.StatusUnauthorized, "Invalid credentials", nil)
 		return
 	}
 
@@ -56,13 +64,13 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		utils.Error(c, http.StatusBadRequest, "Invalid request", nil)
 		return
 	}
 
 	newToken, err := h.svc.RefreshToken(req.RefreshToken)
 	if err != nil {
-		utils.Error(c, http.StatusUnauthorized, err.Error(), nil)
+		utils.Error(c, http.StatusUnauthorized, "Invalid credentials", nil)
 		return
 	}
 
@@ -71,26 +79,37 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 func (h *AuthHandler) Me(c *gin.Context) {
 	// Information already in context from middleware
-	userID, _ := c.Get("user_id")
-	tenantID, _ := c.Get("tenant_id")
-	role, _ := c.Get("role")
+	userID, ok1 := c.Get("user_id")
+	tenantID, ok2 := c.Get("tenant_id")
+	role, ok3 := c.Get("role")
+
+	if !ok1 || !ok2 || !ok3 {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
+		return
+	}
+
+	uid, _ := userID.(string)
+	tid, _ := tenantID.(string)
+	r, _ := role.(string)
 
 	utils.Success(c, "Current user info", gin.H{
-		"user_id":   userID,
-		"tenant_id": tenantID,
-		"role":      role,
+		"user_id":   uid,
+		"tenant_id": tid,
+		"role":      r,
 	})
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// In a real app, we'd blacklist the token in Redis
+	// In a real app, we'd blacklist the token in Redis or invalidate it (TODO)
 	utils.Success(c, "Logout successful", nil)
 }
 
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	// TODO: Implement secure password reset logic with rate limiting and email verification
 	utils.Success(c, "Reset link sent if email exists", nil)
 }
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	// TODO: Implement secure password reset logic with token validation
 	utils.Success(c, "Password reset successful", nil)
 }
