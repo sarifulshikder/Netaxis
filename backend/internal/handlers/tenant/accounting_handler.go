@@ -18,12 +18,14 @@ func NewAccountingHandler(svc *services.AccountingService) *AccountingHandler {
 }
 
 func (h *AccountingHandler) ListAccounts(c *gin.Context) {
-	res, err := h.svc.ListAccounts()
+	limit := utils.GetLimit(c)
+	page := utils.GetPage(c)
+	res, total, err := h.svc.ListAccountsPaginated(limit, page)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to list accounts", err.Error())
 		return
 	}
-	utils.Success(c, "Accounts listed", res)
+	utils.PaginatedSuccess(c, "Accounts listed", res, total, page, limit)
 }
 
 func (h *AccountingHandler) CreateAccount(c *gin.Context) {
@@ -41,7 +43,14 @@ func (h *AccountingHandler) CreateAccount(c *gin.Context) {
 }
 
 func (h *AccountingHandler) ListJournalEntries(c *gin.Context) {
-	utils.Success(c, "Journal entries listed", nil)
+	limit := utils.GetLimit(c)
+	page := utils.GetPage(c)
+	res, total, err := h.svc.ListJournalEntriesPaginated(limit, page)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "Failed to list journal entries", err.Error())
+		return
+	}
+	utils.PaginatedSuccess(c, "Journal entries listed", res, total, page, limit)
 }
 
 func (h *AccountingHandler) CreateJournalEntry(c *gin.Context) {
@@ -59,12 +68,14 @@ func (h *AccountingHandler) CreateJournalEntry(c *gin.Context) {
 }
 
 func (h *AccountingHandler) ListBankAccounts(c *gin.Context) {
-	res, err := h.svc.ListBankAccounts()
+	limit := utils.GetLimit(c)
+	page := utils.GetPage(c)
+	res, total, err := h.svc.ListBankAccountsPaginated(limit, page)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to list bank accounts", err.Error())
 		return
 	}
-	utils.Success(c, "Bank accounts listed", res)
+	utils.PaginatedSuccess(c, "Bank accounts listed", res, total, page, limit)
 }
 
 func (h *AccountingHandler) CreateBankAccount(c *gin.Context) {
@@ -82,7 +93,14 @@ func (h *AccountingHandler) CreateBankAccount(c *gin.Context) {
 }
 
 func (h *AccountingHandler) ListExpenses(c *gin.Context) {
-	utils.Success(c, "Expenses listed", nil)
+	limit := utils.GetLimit(c)
+	page := utils.GetPage(c)
+	res, total, err := h.svc.ListExpensesPaginated(limit, page)
+	if err != nil {
+		utils.Error(c, http.StatusInternalServerError, "Failed to list expenses", err.Error())
+		return
+	}
+	utils.PaginatedSuccess(c, "Expenses listed", res, total, page, limit)
 }
 
 func (h *AccountingHandler) CreateExpense(c *gin.Context) {
@@ -102,6 +120,14 @@ func (h *AccountingHandler) CreateExpense(c *gin.Context) {
 func (h *AccountingHandler) ApproveExpense(c *gin.Context) {
 	id := c.Param("id")
 	adminID := c.GetString("user_id")
+	if adminID == "" {
+		utils.Error(c, http.StatusUnauthorized, "Unauthorized", "Missing admin user ID")
+		return
+	}
+	if !utils.IsValidUUID(id) || !utils.IsValidUUID(adminID) {
+		utils.Error(c, http.StatusBadRequest, "Invalid request", "Invalid UUID format")
+		return
+	}
 	if err := h.svc.ApproveExpense(id, adminID); err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to approve expense", err.Error())
 		return
