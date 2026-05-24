@@ -25,15 +25,39 @@ func TenantMiddleware(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
+		// Validate tenantID is a valid UUID
+		if !utils.IsValidUUID(tenantID) {
+			utils.Error(c, http.StatusBadRequest, "Invalid tenant ID format", nil)
+			c.Abort()
+			return
+		}
+
 		var tenant public.Tenant
-		if err := db.Where("id = ?", tenantID).First(&tenant).Error; err != nil {
+		// Only select needed fields for performance
+		if err := db.Select("id", "schema_name", "status").Where("id = ?", tenantID).Find(&tenant).Error; err != nil {
+			// Log internal error, return generic message
 			utils.Error(c, http.StatusNotFound, "Tenant not found", nil)
 			c.Abort()
 			return
 		}
 
-		if tenant.Status != "active" {
+		// Defensive: check if tenant was found
+		if tenant.ID == "" {
+			utils.Error(c, http.StatusNotFound, "Tenant not found", nil)
+			c.Abort()
+			return
+		}
+
+		// Case-insensitive status check
+		if status := tenant.Status; status != "" && status != "active" && status != "Active" {
 			utils.Error(c, http.StatusForbidden, "Tenant is not active", nil)
+			c.Abort()
+			return
+		}
+
+		// Defensive: validate schema name before using
+		if err := database.ValidateSchemaName(tenant.SchemaName); err != nil {
+			utils.Error(c, http.StatusBadRequest, "Invalid schema name", nil)
 			c.Abort()
 			return
 		}
