@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: netaxis-db
+    environment:
+      POSTGRES_USER: netaxis_admin
+      POSTGRES_PASSWORD: NetAxis@Secure2024
+      POSTGRES_DB: netaxis
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: netaxis-redis
+    ports:
+      - "6379:6379"
+
+  minio:
+    image: minio/minio
+    container_name: netaxis-minio
+    environment:
+      MINIO_ACCESS_KEY: netaxisadmin
+      MINIO_SECRET_KEY: NetAxis@Minio2024
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  backend:
+    build:
+      context: ./backend
+    container_name: netaxis-backend
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8080:8080"
+    env_file:
+      - backend/.env
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - NEXT_PUBLIC_API_URL=/api/v1
+    container_name: netaxis-frontend
+    depends_on:
+      - backend
+    environment:
+      - NEXT_PUBLIC_API_URL=/api/v1
+
+  nginx:
+    image: nginx:alpine
+    container_name: netaxis-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    depends_on:
+      - frontend
+      - backend
+
+volumes:
+  postgres_data:
+  minio_data:
