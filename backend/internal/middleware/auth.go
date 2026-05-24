@@ -27,8 +27,8 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		}
 
 		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			utils.Error(c, http.StatusUnauthorized, "Invalid authorization format", nil)
+		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+			utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -44,7 +44,14 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			utils.Error(c, http.StatusUnauthorized, "Invalid or expired token", nil)
+			utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
+			c.Abort()
+			return
+		}
+
+		// Check token expiration explicitly
+		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(c.Request.Context().Value("now").(time.Time)) {
+			utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
 			c.Abort()
 			return
 		}
@@ -65,7 +72,12 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 			return
 		}
 
-		roleStr := userRole.(string)
+		roleStr, ok := userRole.(string)
+		if !ok {
+			utils.Error(c, http.StatusForbidden, "Forbidden", nil)
+			c.Abort()
+			return
+		}
 		allowed := false
 		for _, r := range roles {
 			if r == roleStr {
@@ -75,7 +87,7 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 		}
 
 		if !allowed {
-			utils.Error(c, http.StatusForbidden, "You do not have permission to access this resource", nil)
+			utils.Error(c, http.StatusForbidden, "Forbidden", nil)
 			c.Abort()
 			return
 		}
