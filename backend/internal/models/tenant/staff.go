@@ -13,7 +13,7 @@ type Staff struct {
 	Phone       string    `json:"phone"`
 	Role        string    `gorm:"not null" json:"role"`
 	Designation string    `json:"designation"`
-	Salary      float64   `json:"salary"`
+	Salary      float64   `gorm:"not null" json:"-"` // Sensitive, do not expose in JSON
 	IsActive    bool      `gorm:"default:true" json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -22,6 +22,7 @@ type Staff struct {
 type StaffAuth struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
 	StaffID   uuid.UUID `gorm:"type:uuid;not null" json:"staff_id"`
+	// Password must always be stored as a hash, never plaintext.
 	Password  string    `gorm:"not null" json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -31,8 +32,8 @@ type StaffAttendance struct {
 	StaffID     uuid.UUID  `gorm:"type:uuid;not null" json:"staff_id"`
 	CheckIn     *time.Time `json:"check_in"`
 	CheckOut    *time.Time `json:"check_out"`
-	LocationIn  string     `json:"location_in"`
-	LocationOut string     `json:"location_out"`
+	LocationIn  string     `json:"location_in"`  // May contain sensitive location data, handle carefully
+	LocationOut string     `json:"location_out"` // May contain sensitive location data, handle carefully
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
@@ -48,16 +49,16 @@ type StaffLeave struct {
 }
 
 type StaffPayroll struct {
-	ID            uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
-	StaffID       uuid.UUID `gorm:"type:uuid;not null" json:"staff_id"`
-	Month         int       `json:"month"`
-	Year          int       `json:"year"`
-	BasicSalary   float64   `json:"basic_salary"`
-	Allowances    float64   `json:"allowances"`
-	Deductions    float64   `json:"deductions"`
-	NetSalary     float64   `json:"net_salary"`
-	PaymentStatus string    `gorm:"default:paid" json:"payment_status"`
-	PaidAt        time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"paid_at"`
+	ID            uuid.UUID  `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
+	StaffID       uuid.UUID  `gorm:"type:uuid;not null" json:"staff_id"`
+	Month         int        `json:"month"`
+	Year          int        `json:"year"`
+	BasicSalary   float64    `json:"basic_salary"`
+	Allowances    float64    `json:"allowances"`
+	Deductions    float64    `json:"deductions"`
+	NetSalary     float64    `json:"net_salary"`
+	PaymentStatus string     `gorm:"default:pending" json:"payment_status"` // Default should be pending
+	PaidAt        *time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"paid_at"` // Pointer allows null for unpaid
 }
 
 func (Staff) TableName() string             { return "staff" }
