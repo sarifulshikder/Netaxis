@@ -20,17 +20,17 @@ type NotificationLog struct {
 	ID           uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
 	CustomerID   uuid.UUID `gorm:"type:uuid;not null" json:"customer_id"`
 	EventType    string    `json:"event_type"`
-	Recipient    string    `json:"recipient"`
+	Recipient    string    `json:"-"` // Sensitive, do not expose in JSON
 	Channel      string    `json:"channel"` // SMS, Email
 	Status       string    `json:"status"`  // sent, failed
-	ErrorMessage string    `json:"error_message"`
+	ErrorMessage string    `json:"-"` // Sensitive, do not expose in JSON
 	CreatedAt    time.Time `json:"created_at"`
 }
 
 type Setting struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"id"`
 	Key       string    `gorm:"uniqueIndex;not null" json:"key"`
-	Value     string    `json:"value"`
+	Value     string    `json:"-"` // Sensitive, do not expose in JSON
 	GroupName string    `json:"group_name"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
