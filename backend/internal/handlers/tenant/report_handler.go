@@ -20,9 +20,22 @@ func NewReportHandler(svc *services.ReportService) *ReportHandler {
 func (h *ReportHandler) Revenue(c *gin.Context) {
 	startStr := c.DefaultQuery("start", time.Now().AddDate(0, -1, 0).Format("2006-01-02"))
 	endStr := c.DefaultQuery("end", time.Now().Format("2006-01-02"))
-	
-	start, _ := time.Parse("2006-01-02", startStr)
-	end, _ := time.Parse("2006-01-02", endStr)
+
+	start, err := time.Parse("2006-01-02", startStr)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, "Invalid start date format", err.Error())
+		return
+	}
+	end, err := time.Parse("2006-01-02", endStr)
+	if err != nil {
+		utils.Error(c, http.StatusBadRequest, "Invalid end date format", err.Error())
+		return
+	}
+
+	if end.Before(start) {
+		utils.Error(c, http.StatusBadRequest, "End date cannot be before start date", nil)
+		return
+	}
 
 	res, err := h.svc.RevenueReport(start, end)
 	if err != nil {
