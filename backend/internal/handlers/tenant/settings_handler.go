@@ -31,6 +31,19 @@ func (h *SettingsHandler) UpdateBulk(c *gin.Context) {
 		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
+
+	// Input validation: check for empty keys or values
+	for k, v := range data {
+		if k == "" {
+			utils.Error(c, http.StatusBadRequest, "Empty setting key is not allowed", nil)
+			return
+		}
+		if v == "" {
+			utils.Error(c, http.StatusBadRequest, "Empty setting value is not allowed", nil)
+			return
+		}
+	}
+
 	if err := h.svc.UpdateBulk(data); err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to update settings", err.Error())
 		return
@@ -40,11 +53,19 @@ func (h *SettingsHandler) UpdateBulk(c *gin.Context) {
 
 func (h *SettingsHandler) Update(c *gin.Context) {
 	key := c.Param("key")
+	if key == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing setting key", nil)
+		return
+	}
 	var req struct {
 		Value string `json:"value" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
+	if req.Value == "" {
+		utils.Error(c, http.StatusBadRequest, "Empty setting value is not allowed", nil)
 		return
 	}
 	if err := h.svc.Update(key, req.Value); err != nil {
