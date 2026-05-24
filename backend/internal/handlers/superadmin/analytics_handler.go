@@ -16,15 +16,24 @@ func NewAnalyticsHandler(db *gorm.DB) *AnalyticsHandler {
 }
 
 func (h *AnalyticsHandler) Overview(c *gin.Context) {
-	var totalTenants int64
-	h.db.Model(&public.Tenant{}).Count(&totalTenants)
+	type Result struct {
+		Total        int64
+		Active       int64
+	}
+	var res Result
 
-	var activeTenants int64
-	h.db.Model(&public.Tenant{}).Where("status = ?", "active").Count(&activeTenants)
+	// Single query for both counts
+	err := h.db.Model(&public.Tenant{}).
+		Select("COUNT(*) AS total, COUNT(*) FILTER (WHERE status = 'active') AS active").
+		Scan(&res).Error
+	if err != nil {
+		utils.Error(c, 500, "Failed to fetch platform overview", err.Error())
+		return
+	}
 
 	utils.Success(c, "Platform overview fetched", gin.H{
-		"total_tenants":  totalTenants,
-		"active_tenants": activeTenants,
+		"total_tenants":  res.Total,
+		"active_tenants": res.Active,
 	})
 }
 
