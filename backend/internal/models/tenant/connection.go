@@ -13,10 +13,14 @@ type Connection struct {
 	PackageID           uuid.UUID      `gorm:"type:uuid;not null" json:"package_id"`
 	RouterID            uuid.UUID      `gorm:"type:uuid;not null" json:"router_id"`
 	Username            string         `gorm:"uniqueIndex;not null" json:"username"`
-	Password            string         `gorm:"not null" json:"password"`
-	IPAddress           string         `json:"ip_address"`
-	MacAddress          string         `json:"mac_address"`
-	InstallationAddress string         `json:"installation_address"`
+	// Password must always be stored as a hash, never plaintext.
+	Password            string         `gorm:"not null" json:"-"`
+	// IPAddress may be sensitive, consider not exposing in JSON unless required.
+	IPAddress           string         `gorm:"not null" json:"-"`
+	// MacAddress may be sensitive, consider not exposing in JSON unless required.
+	MacAddress          string         `gorm:"not null" json:"-"`
+	// InstallationAddress may be sensitive, consider not exposing in JSON unless required.
+	InstallationAddress string         `gorm:"not null" json:"-"`
 	Status              string         `gorm:"default:active" json:"status"`
 	InstallationDate    time.Time      `json:"installation_date"`
 	BillingCycleDay     int            `gorm:"default:1" json:"billing_cycle_day"`
