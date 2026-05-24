@@ -20,7 +20,8 @@ func NewTenantHandler(svc *services.TenantService) *TenantHandler {
 func (h *TenantHandler) List(c *gin.Context) {
 	tenants, err := h.svc.ListTenants()
 	if err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Failed to list tenants", err.Error())
+		// Avoid leaking internal error details to client
+		utils.Error(c, http.StatusInternalServerError, "Failed to list tenants", nil)
 		return
 	}
 	utils.Success(c, "Tenants listed", tenants)
@@ -39,9 +40,16 @@ func (h *TenantHandler) Create(c *gin.Context) {
 		return
 	}
 
+	// Defensive: ensure admin password is not empty (should be enforced by binding, but double check)
+	if req.AdminPassword == "" {
+		utils.Error(c, http.StatusBadRequest, "Admin password required", nil)
+		return
+	}
+
 	tenant, err := h.svc.CreateTenant(req.Tenant, req.AdminPassword, req.PlanID)
 	if err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Failed to create tenant", err.Error())
+		// Avoid leaking internal error details to client
+		utils.Error(c, http.StatusInternalServerError, "Failed to create tenant", nil)
 		return
 	}
 	utils.Success(c, "Tenant created successfully", tenant)
@@ -49,9 +57,13 @@ func (h *TenantHandler) Create(c *gin.Context) {
 
 func (h *TenantHandler) Get(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing tenant ID", nil)
+		return
+	}
 	tenant, err := h.svc.GetTenant(id)
 	if err != nil {
-		utils.Error(c, http.StatusNotFound, "Tenant not found", err.Error())
+		utils.Error(c, http.StatusNotFound, "Tenant not found", nil)
 		return
 	}
 	utils.Success(c, "Tenant fetched", tenant)
@@ -59,6 +71,10 @@ func (h *TenantHandler) Get(c *gin.Context) {
 
 func (h *TenantHandler) Update(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing tenant ID", nil)
+		return
+	}
 	var data public.Tenant
 	if err := c.ShouldBindJSON(&data); err != nil {
 		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
@@ -67,20 +83,30 @@ func (h *TenantHandler) Update(c *gin.Context) {
 
 	tenant, err := h.svc.UpdateTenant(id, data)
 	if err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Failed to update tenant", err.Error())
+		utils.Error(c, http.StatusInternalServerError, "Failed to update tenant", nil)
 		return
 	}
 	utils.Success(c, "Tenant updated", tenant)
 }
 
 func (h *TenantHandler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing tenant ID", nil)
+		return
+	}
+	// TODO: Implement actual soft delete logic in service layer
 	utils.Success(c, "Tenant deleted (soft)", nil)
 }
 
 func (h *TenantHandler) Activate(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing tenant ID", nil)
+		return
+	}
 	if err := h.svc.ActivateTenant(id); err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Failed to activate", err.Error())
+		utils.Error(c, http.StatusInternalServerError, "Failed to activate", nil)
 		return
 	}
 	utils.Success(c, "Tenant activated", nil)
@@ -88,8 +114,12 @@ func (h *TenantHandler) Activate(c *gin.Context) {
 
 func (h *TenantHandler) Suspend(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Missing tenant ID", nil)
+		return
+	}
 	if err := h.svc.SuspendTenant(id); err != nil {
-		utils.Error(c, http.StatusInternalServerError, "Failed to suspend", err.Error())
+		utils.Error(c, http.StatusInternalServerError, "Failed to suspend", nil)
 		return
 	}
 	utils.Success(c, "Tenant suspended", nil)
