@@ -2,12 +2,18 @@ package tenant
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/netaxis/backend/internal/models/tenant"
 	"github.com/netaxis/backend/internal/services"
 	"github.com/netaxis/backend/internal/utils"
 )
+
+// trimWhitespace trims all leading and trailing whitespace from a string.
+func trimWhitespace(s string) string {
+	return strings.TrimSpace(s)
+}
 
 type StaffHandler struct {
 	svc *services.StaffService
@@ -35,6 +41,19 @@ func (h *StaffHandler) Create(c *gin.Context) {
 		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
 		return
 	}
+
+	// Defensive: ensure password is not empty or only whitespace
+	if len(req.Password) == 0 || len(trimWhitespace(req.Password)) == 0 {
+		utils.Error(c, http.StatusBadRequest, "Password required", nil)
+		return
+	}
+
+	// Defensive: ensure email is not empty and valid
+	if len(req.Staff.Email) == 0 {
+		utils.Error(c, http.StatusBadRequest, "Email required", nil)
+		return
+	}
+
 	res, err := h.svc.CreateStaff(req.Staff, req.Password)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to create staff", err.Error())
@@ -57,10 +76,17 @@ func (h *StaffHandler) Delete(c *gin.Context) {
 
 func (h *StaffHandler) CheckIn(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Staff ID required", nil)
+		return
+	}
 	var req struct {
 		Location string `json:"location"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
 	if err := h.svc.CheckIn(id, req.Location); err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to check in", err.Error())
 		return
@@ -70,10 +96,17 @@ func (h *StaffHandler) CheckIn(c *gin.Context) {
 
 func (h *StaffHandler) CheckOut(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Staff ID required", nil)
+		return
+	}
 	var req struct {
 		Location string `json:"location"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.Error(c, http.StatusBadRequest, "Invalid request", err.Error())
+		return
+	}
 	if err := h.svc.CheckOut(id, req.Location); err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to check out", err.Error())
 		return
@@ -83,6 +116,10 @@ func (h *StaffHandler) CheckOut(c *gin.Context) {
 
 func (h *StaffHandler) AttendanceHistory(c *gin.Context) {
 	id := c.Param("id")
+	if id == "" {
+		utils.Error(c, http.StatusBadRequest, "Staff ID required", nil)
+		return
+	}
 	res, err := h.svc.ListAttendance(id)
 	if err != nil {
 		utils.Error(c, http.StatusInternalServerError, "Failed to fetch attendance", err.Error())
@@ -100,5 +137,6 @@ func (h *StaffHandler) CreatePayroll(c *gin.Context) {
 }
 
 func (h *StaffHandler) ApplyLeave(c *gin.Context) {
+	// TODO: Implement leave application logic with validation
 	utils.Success(c, "Leave applied", nil)
 }
