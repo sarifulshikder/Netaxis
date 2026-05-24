@@ -43,15 +43,22 @@ func AuthMiddleware(secret string) gin.HandlerFunc {
 			return []byte(secret), nil
 		})
 
-		if err != nil || !token.Valid {
+		if err != nil || token == nil || !token.Valid {
 			utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
 			c.Abort()
 			return
 		}
 
 		// Check token expiration explicitly
-		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(c.Request.Context().Value("now").(time.Time)) {
-			utils.Error(c, http.StatusUnauthorized, "Unauthorized", nil)
+		if claims.ExpiresAt != nil && claims.ExpiresAt.Time.Before(time.Now()) {
+			utils.Error(c, http.StatusUnauthorized, "Token expired", nil)
+			c.Abort()
+			return
+		}
+
+		// Validate claims fields
+		if claims.UserID == "" || claims.TenantID == "" || claims.Role == "" {
+			utils.Error(c, http.StatusUnauthorized, "Invalid token claims", nil)
 			c.Abort()
 			return
 		}
@@ -80,7 +87,7 @@ func RequireRole(roles ...string) gin.HandlerFunc {
 		}
 		allowed := false
 		for _, r := range roles {
-			if r == roleStr {
+			if strings.EqualFold(r, roleStr) {
 				allowed = true
 				break
 			}
